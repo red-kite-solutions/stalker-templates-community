@@ -1,0 +1,14 @@
+name: Http Get
+type: code
+language: python
+parameters:
+  - name: targetIp
+    type: string
+  - name: domainName
+    type: string
+  - name: port
+    type: number
+  - name: path
+    type: string
+jobPodConfigName: S
+category: "python"
