@@ -3,4 +3,4 @@ type: code
 language: python
 parameters: []
 jobPodConfigName: XS
-category: "/python"
+category: "python"
