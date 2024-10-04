@@ -1,0 +1,9 @@
+name: Refreshing all domain names
+input: ALL_DOMAINS
+triggerType: cron
+cronExpression: "0 0 */7 * *"
+job:
+  name: DomainNameResolvingJob
+  parameters:
+    - name: domainName
+      value: ${domainName}

@@ -1,0 +1,9 @@
+name: Domain name resolution
+triggerType: event
+finding: HostnameFinding
+cooldown: 82800
+job:
+  name: DomainNameResolvingJob
+  parameters:
+    - name: domainName
+      value: ${domainName}
