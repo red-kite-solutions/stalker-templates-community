@@ -1,6 +1,7 @@
 name: Login portal screenshot
 triggerType: event
-finding: WebsiteLoginPortal
+findings: 
+  - WebsiteLoginPortal
 discriminator: ${endpoint}
 cooldown: 2592000
 job:

@@ -1,6 +1,7 @@
 name: Website crawling
 triggerType: event
-finding: WebsiteFinding
+findings: 
+  - WebsiteFinding
 cooldown: 86400
 job:
   name: WebsiteCrawlingJob

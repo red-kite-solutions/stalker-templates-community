@@ -1,6 +1,7 @@
 name: Detect login portals
 triggerType: event
-finding: WebsitePathFinding
+findings: 
+  - WebsitePathFinding
 cooldown: 86400
 discriminator: ${endpoint}
 job:

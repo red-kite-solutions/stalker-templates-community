@@ -1,6 +1,8 @@
 name: Tcp port scanning all ports
 triggerType: event
-finding: HostnameIpFinding
+findings: 
+  - HostnameIpFinding
+  - IpFinding
 cooldown: 82800
 job:
   name: TcpPortScanningJob
