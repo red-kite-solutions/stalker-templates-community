@@ -31,3 +31,4 @@ parameters:
     value: "-jc -kf all -duc -j -or -ob -silent"
 jobPodConfigName: M
 category: "built-in/python"
+image: "ghcr.io/red-kite-solutions/stalker-python-job-base:1"
