@@ -1,6 +1,7 @@
 name: Domain name resolution
 triggerType: event
-finding: HostnameFinding
+findings: 
+  - HostnameFinding
 cooldown: 82800
 job:
   name: DomainNameResolvingJob

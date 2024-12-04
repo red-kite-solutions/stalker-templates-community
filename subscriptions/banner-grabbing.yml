@@ -1,6 +1,7 @@
 name: Banner grabbing
 triggerType: event
-finding: PortFinding
+findings: 
+  - PortFinding
 cooldown: 82800
 builtIn: true
 job:

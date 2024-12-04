@@ -1,6 +1,7 @@
 name: Website screenshot
 triggerType: event
-finding: WebsiteFinding
+findings: 
+  - WebsiteFinding
 cooldown: 2592000
 job:
   name: WebsiteScreenshotJob
