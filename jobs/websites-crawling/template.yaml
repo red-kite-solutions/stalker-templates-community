@@ -28,6 +28,7 @@ parameters:
     type: number
     default: 10
   - name: extraOptions
-    value: "-jc -kf all -duc -j -or -ob -silent"
+    type: string
+    default: "-jc -kf all -duc -j -or -ob -silent"
 jobPodConfigName: M
 category: "built-in/python"
