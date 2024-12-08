@@ -6,7 +6,7 @@ import socket
 import threading
 from ipaddress import ip_address
 
-from stalker_job_sdk import (JobStatus, PortFinding, TextField, is_valid_ip,
+from red_kite_job_sdk import (JobStatus, PortFinding, TextField, is_valid_ip,
                              is_valid_port, log_error, log_finding, log_status,
                              log_warning)
 

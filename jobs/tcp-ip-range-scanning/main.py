@@ -3,7 +3,7 @@ from json import loads
 from os import environ
 from subprocess import CompletedProcess, run
 
-from stalker_job_sdk import (IpFinding, JobStatus, PortFinding, TextField,
+from red_kite_job_sdk import (IpFinding, JobStatus, PortFinding, TextField,
                              is_valid_ip, is_valid_port, log_error,
                              log_finding, log_info, log_status, log_warning)
 

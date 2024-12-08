@@ -1,4 +1,4 @@
-from stalker_job_sdk import JobStatus, log_error, log_info, log_status
+from red_kite_job_sdk import JobStatus, log_error, log_info, log_status
 
 
 def main():
