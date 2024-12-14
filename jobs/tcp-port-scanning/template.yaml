@@ -19,5 +19,5 @@ parameters:
   - name: ports
     type: number[]
     default: [3000, 3389, 8000, 8080, 8443]
-jobPodConfigName: XL
+jobPodConfigName: M
 category: "built-in/python"
