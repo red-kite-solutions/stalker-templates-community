@@ -12,3 +12,4 @@ parameters:
     type: string
 jobPodConfigName: S
 category: "python"
+image: "ghcr.io/red-kite-solutions/stalker-python-job-base:1"
