@@ -4,4 +4,4 @@ language: python
 parameters: []
 jobPodConfigName: XS
 category: "python"
-image: "ghcr.io/red-kite-solutions/stalker-python-job-base:1"
+image: "ghcr.io/red-kite-solutions/stalker-python-job-base:2"

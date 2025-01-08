@@ -23,4 +23,4 @@ parameters:
 jobPodConfigName: M
 category: "built-in/nuclei"
 findingHandlerLanguage: python
-image: "ghcr.io/red-kite-solutions/stalker-nuclei-job-base:1"
+image: "ghcr.io/red-kite-solutions/stalker-nuclei-job-base:2"
