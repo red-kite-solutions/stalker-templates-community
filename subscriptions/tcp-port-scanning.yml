@@ -10,7 +10,7 @@ job:
     - name: targetIp
       value: ${ip}
     - name: threads
-      value: 1000
+      value: 200
     - name: socketTimeoutSeconds
       value: 0.7
     - name: portMin
