@@ -27,7 +27,6 @@ class PortScanThread(threading.Thread):
     def __init__(self, ports: list):
         threading.Thread.__init__(self)
         self.ports_to_scan = ports
-        self.open_ports = []
 
     def is_tcp_port_open(self, port: int):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -39,11 +38,23 @@ class PortScanThread(threading.Thread):
         except Exception:
             return False
 
+    def publish_port_finding(self, port: int):
+        log_finding(
+            PortFinding(
+                "PortFinding",
+                TARGET_IP,
+                port,
+                "tcp",
+                "Port scanning finding",
+                [TextField("protocol", "Handshake completed", "tcp")],
+                "PortFinding",
+            )
+        )
+
     def run(self):
         for p in self.ports_to_scan:
-            if self.is_tcp_port_open(p):
-                self.open_ports.append(p)
-
+            if not self.is_tcp_port_open(p): continue
+            self.publish_port_finding(p)
 
 TARGET_IP: str = os.environ.get("targetIp")  # IP to scan
 THREADS: int = int(os.environ.get("threads"))  # number of threads to do the requests
@@ -134,26 +145,6 @@ for l in sublists:
 
 # Wait for port scan threads to finish
 for t in threads_list:
-    t.join()
-
-open_ports_output = []
-for t in threads_list:
-    if t.open_ports:
-        open_ports_output += t.open_ports
-
-open_ports_output.sort()
-
-for port in open_ports_output:
-    log_finding(
-        PortFinding(
-            "PortFinding",
-            TARGET_IP,
-            port,
-            "tcp",
-            "Port scanning finding",
-            [TextField("protocol", "This is a TCP port", "tcp")],
-            "PortFinding",
-        )
-    )
+    t.join()    
 
 log_status(JobStatus.SUCCESS)
