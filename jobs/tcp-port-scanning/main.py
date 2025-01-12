@@ -54,7 +54,7 @@ class PortScanThread(threading.Thread):
     def run(self):
         for p in self.ports_to_scan:
             if not self.is_tcp_port_open(p): continue
-            publish_port_finding(p)
+            self.publish_port_finding(p)
 
 TARGET_IP: str = os.environ.get("targetIp")  # IP to scan
 THREADS: int = int(os.environ.get("threads"))  # number of threads to do the requests
