@@ -1,6 +1,6 @@
 from nuclei_finding import NucleiFinding
 from nuclei_job_input import JobInput
-from stalker_job_sdk import (TagFinding, TextField, WebsiteFinding,
+from red_kite_job_sdk import (TagFinding, TextField, WebsiteFinding,
                              log_finding, log_info)
 
 

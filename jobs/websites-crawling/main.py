@@ -4,7 +4,7 @@ from json import loads
 from subprocess import PIPE, Popen
 from urllib.parse import urlparse
 
-from stalker_job_sdk import (JobStatus, TextField, WebsiteFinding, build_url,
+from red_kite_job_sdk import (JobStatus, TextField, WebsiteFinding, build_url,
                              is_valid_ip, is_valid_port, log_error,
                              log_finding, log_info, log_status, log_warning,
                              to_boolean)

@@ -3,7 +3,7 @@ import xml.etree.ElementTree as ET
 from json import loads
 from subprocess import CompletedProcess, run
 
-from stalker_job_sdk import (DomainFinding, IpFinding, JobStatus, PortFinding,
+from red_kite_job_sdk import (DomainFinding, IpFinding, JobStatus, PortFinding,
                              TextField, is_valid_ip, is_valid_port, log_error,
                              log_finding, log_info, log_status)
 

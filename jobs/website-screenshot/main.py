@@ -4,7 +4,7 @@ from shutil import rmtree
 from subprocess import CompletedProcess, run
 
 from PIL import Image, UnidentifiedImageError
-from stalker_job_sdk import (ImageField, JobStatus, TextField, WebsiteFinding,
+from red_kite_job_sdk import (ImageField, JobStatus, TextField, WebsiteFinding,
                              build_url, is_valid_ip, is_valid_port, log_error,
                              log_finding, log_info, log_status, log_warning,
                              to_boolean)

@@ -2,7 +2,7 @@ import os
 from urllib.parse import urlparse
 
 import httpx
-from stalker_job_sdk import (JobStatus, TextField, WebsiteFinding, build_url,
+from red_kite_job_sdk import (JobStatus, TextField, WebsiteFinding, build_url,
                              is_valid_ip, is_valid_port, log_error,
                              log_finding, log_info, log_status, log_warning,
                              to_boolean)
