@@ -46,7 +46,7 @@ class PortScanThread(threading.Thread):
                 port,
                 "tcp",
                 "Port scanning finding",
-                [TextField("protocol", "This is a TCP port", "tcp")],
+                [TextField("protocol", "Handshake completed", "tcp")],
                 "PortFinding",
             )
         )
