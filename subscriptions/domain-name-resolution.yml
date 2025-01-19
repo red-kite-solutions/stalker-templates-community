@@ -6,5 +6,6 @@ cooldown: 82800
 job:
   name: DomainNameResolvingJob
   parameters:
-    - name: domainName
-      value: ${domainName}
+    - name: domainNames
+      value: 
+        - ${domainName}
