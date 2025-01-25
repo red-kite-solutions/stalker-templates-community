@@ -1,9 +1,12 @@
 name: Refreshing all domain names
 input: ALL_DOMAINS
+batch:
+  enabled: true
+  size: 100
 triggerType: cron
 cronExpression: "0 0 */7 * *"
 job:
   name: DomainNameResolvingJob
   parameters:
-    - name: domainName
-      value: ${domainName}
+    - name: domainNames
+      value: ${domainBatch}
