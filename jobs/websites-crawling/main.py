@@ -182,6 +182,7 @@ def main():
             log_error(line)
             
     emit_technology_findings(technologies, domain, target_ip, port, path, ssl)
+    emit_out_of_scope_files(external_files, domain, target_ip, port, path, ssl)
 
 try:
     main()
