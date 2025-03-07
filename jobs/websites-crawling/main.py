@@ -152,7 +152,7 @@ def main():
     katana_str: str = f"katana -u {url} -d {max_depth} -ct {crawl_duration_seconds} -c {str(concurrency)} -p {str(parallelism)} {extra_options}"
     log_info(f'Start of crawling: {katana_str}')
 
-    # katana -u https://example.com -silent -d 3 -ct 3600 -jc -kf all -timeout 3 -duc -j -or -ob -c 10 -p 10 -do
+    # katana -u https://example.com -d 3 -ct 3600 -c 10 -p 10 -jc -kf all -duc -j -or -ob -silent -td -do
     technologies: 'set[str]' = set()
     external_files: 'set[str]' = set()
     with Popen(katana_str, stdout=PIPE, stderr=PIPE, universal_newlines=True, shell=True) as katana_process:
