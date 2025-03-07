@@ -29,7 +29,7 @@ parameters:
     default: 10
   - name: extraOptions
     type: string
-    default: "-jc -kf all -duc -j -or -ob -silent -do"
+    default: "-jc -kf all -duc -j -or -ob -silent -do -td"
 jobPodConfigName: M
 category: "built-in/python"
 image: "ghcr.io/red-kite-solutions/stalker-python-job-base:2"
