@@ -8,7 +8,7 @@ from urllib.parse import urlparse
 from stalker_job_sdk import (JobStatus, TextField, WebsiteFinding, build_url,
                              is_valid_ip, is_valid_port, log_error,
                              log_finding, log_info, log_status, log_warning,
-                             to_boolean, TagFinding)
+                             to_boolean, TagFinding, DomainFinding, IpFinding)
 
 
 class WebsiteInfo:
@@ -277,8 +277,10 @@ def main():
     log_info(f'Start of crawling: {katana_str}')
 
     # katana -u https://example.com -d 3 -ct 3600 -c 10 -p 10 -jc -kf all -duc -j -or -silent -td -do
-    technologies: 'set[str]' = set()
-    external_files: 'set[str]' = set()
+    technologies: set[str] = set()
+    external_files: set[str] = set()
+    new_domains: set[str] = set()
+    new_ips: set[str] = set()
     with Popen(katana_str, stdout=PIPE, stderr=PIPE, universal_newlines=True, shell=True) as katana_process:
         
         for line in katana_process.stdout:
@@ -289,6 +291,12 @@ def main():
                     if file.error:
                         if file.error == "out of scope":
                             external_files.add(file.request.endpoint)
+                        continue
+
+                    # Adding potentially unknown domains or IPs
+                    hostname = urlparse(file.request.endpoint).hostname
+                    if hostname != domain:
+                        new_ips.add(hostname) if is_valid_ip(hostname) else new_domains.add(hostname)
                         continue
 
                     if file.response.technologies:
@@ -311,6 +319,21 @@ def main():
             
     emit_technology_findings(technologies, website_info)
     emit_out_of_scope_files(external_files, website_info)
+    
+    for new_domain in new_domains:
+        log_finding(
+            DomainFinding(
+                "HostnameFinding", new_domain, None, "New domain", [], "HostnameFinding"
+            )
+        )
+
+    for new_ip in new_ips:
+        log_finding(
+            IpFinding(
+                "IpFinding", new_ip, "New ip", [], "IpFinding"
+            )
+        )
+    
 
 
 main()
