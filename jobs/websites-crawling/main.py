@@ -1,5 +1,6 @@
 import os
 import typing
+import re
 from json import loads
 from subprocess import PIPE, Popen
 from urllib.parse import urlparse
@@ -7,8 +8,16 @@ from urllib.parse import urlparse
 from stalker_job_sdk import (JobStatus, TextField, WebsiteFinding, build_url,
                              is_valid_ip, is_valid_port, log_error,
                              log_finding, log_info, log_status, log_warning,
-                             to_boolean)
+                             to_boolean, TagFinding)
 
+
+class WebsiteInfo:
+    def __init__(self, ip, port, domain, path, ssl):
+        self.domain: str = domain
+        self.ip: str = ip
+        self.port: int = port
+        self.path: str = path
+        self.ssl: bool = ssl
 
 class WebsiteRequest:
     method: str
@@ -21,8 +30,39 @@ class WebsiteResponse:
     status_code: int
     headers: typing.Dict[str, str]
     technologies: 'list[str]'
+    body: str
 
+class TagAction:
+    enabled: bool
+    name: str
 
+class ContentRegex:
+    def __init__(
+            self, finding_name: str,
+            finding_display_name: str,
+            finding_context: str,
+            target: str,
+            regex: list[str],
+            tag_enabled: bool = False,
+            tag_name: str = '',
+            exclude_file_extensions: list[str] = [],
+            exclude_content_types: list[str] = []
+            ):
+        self.finding_name: str = finding_name
+        self.finding_display_name: str = finding_display_name
+        self.finding_context: str = finding_context
+        self.exclude_file_extensions: list[str] = exclude_file_extensions
+        self.exclude_content_types: list[str] = exclude_content_types
+        
+        if target not in ["headers", "body", "all"]:
+            self.target: str = 'all'
+        else:
+            self.target = target
+        self.regex: list[str] = regex
+        self.tag: TagAction = TagAction()
+        self.tag.enabled = tag_enabled
+        self.tag.name = tag_name
+    
 class WebsiteFile:
     timestamp: str
     request: WebsiteRequest
@@ -45,6 +85,7 @@ class WebsiteFile:
             self.response.headers = res.get("headers")
             self.response.status_code = res.get("status_code")
             self.response.technologies = res.get("technologies")
+            self.response.body = res.get("body")
         
 
 def get_valid_args():
@@ -93,8 +134,24 @@ def get_valid_args():
 
     return target_ip, port, domain, path, ssl, max_depth, crawl_duration_seconds, concurrency, parallelism, extra_katana_option
 
+extension_exclusions = ['css', 'png', 'jpg', 'jpeg', 'svg', 'ico']
+content_types_exclusions = ['text/css']
+global_content_types_exclusions = ['application/vnd', 'video/', 'image/', 'audio/']
 
-def emit_file_finding(file: WebsiteFile, domain: str, ip: str, port: int, path: str, ssl: bool):
+default_regex: list[ContentRegex] = [
+    ContentRegex("WebsiteLoginPortal", "Login Portal", "Possible login portal", "body", [
+        r"<input[^>]*?name=[\"']?(user(?:name)?|login|pass(?:word|wd)?|pwd)[\"']?[^>]*?>",
+        r"<button[^>]*?(?:type=[\"']?submit[\"']?[^>]*?)?>.{0,100}?(Log\s?in|Sign\s?In|Conne(?:ct|xion))",
+        r"<form[^>]*?(?:action|id)=[\"']?(?:login|Conne(?:ct|xion)|auth)[\"']?[^>]*?>",
+        r"<div class=\"auth-login-actions\"",
+        r"log\s?in|pass(?:word|wd)|sign\s?in|mot(?:\sde\s|\-)passe|(?:se\s)connecter|connexion|username|(?:nom d')utilisateur|authenti(?:cation|fication)"
+    ], True, "Login", extension_exclusions, content_types_exclusions),
+    ContentRegex("AuthenticationHeader", "Authentication Header", "WWW-Authenticate header found", "headers", [
+        r"WWW-Authenticate:\s*(Basic|Bearer|Digest|NTLM)?"
+    ], True, "Login"),
+]
+
+def emit_file_finding(file: WebsiteFile, wi: WebsiteInfo):
     fields = []
 
     if file.response.status_code:
@@ -118,19 +175,19 @@ def emit_file_finding(file: WebsiteFile, domain: str, ip: str, port: int, path: 
 
     log_finding(
         WebsiteFinding(
-            "WebsitePathFinding", ip, port, domain, path, ssl, f"Website path", fields
+            "WebsitePathFinding", wi.ip, wi.port, wi.domain, wi.path, wi.ssl, f"Website path", fields
         )
     )
 
-def emit_technology_findings(technologies: 'list[str]', domain: str, ip: str, port: int, path: str, ssl: bool):
+def emit_technology_findings(technologies: 'list[str]', wi: WebsiteInfo):
     for tech in technologies:
         log_finding(
             WebsiteFinding(
-                "WebsiteTechnologyFinding", ip, port, domain, path, ssl, f"Technology", [TextField("technology", "Technology", tech)]
+                "WebsiteTechnologyFinding", wi.ip, wi.port, wi.domain, wi.path, wi.ssl, f"Technology", [TextField("technology", "Technology", tech)]
             )
         )
 
-def emit_out_of_scope_files(endpoints: 'list[str]', domain: str, ip: str, port: int, path: str, ssl: bool):
+def emit_out_of_scope_files(endpoints: 'list[str]', wi: WebsiteInfo):
     if len(endpoints) <= 0:
         return
     
@@ -140,19 +197,86 @@ def emit_out_of_scope_files(endpoints: 'list[str]', domain: str, ip: str, port: 
 
     log_finding(
         WebsiteFinding(
-            "OutOfScopeEndpoints", ip, port, domain, path, ssl, f"Website out of scope endpoints", fields
+            "OutOfScopeEndpoints", wi.ip, wi.port, wi.domain, wi.path, wi.ssl, f"Website out of scope endpoints", fields
         )
     )
+
+def apply_regex(content_regex: ContentRegex, text: str):
+    matches: list[re.Match] = []
+    for regex in content_regex.regex:
+        matches.extend(re.finditer(regex, text, re.IGNORECASE | re.DOTALL))
+    return matches
+
+def emit_regex_findings(content_regex: ContentRegex, matches: list[re.Match], wi: WebsiteInfo, wr: WebsiteRequest):
+    if len(matches) <= 0:
+        return
     
+    fields = [TextField("context", None, content_regex.finding_context)]
+    for match in matches:
+        extracted_fields = []
+        fields.append(TextField("match", "Match", match[0]))
+        fields.append(TextField("endpoint", "Endpoint", wr.endpoint))
+
+        for group in match.groups():
+            extracted_fields.append(TextField("group", None, group))
+
+        if len(extracted_fields) > 0:
+            fields.append(TextField("groups_title", "Extracted groups", None))
+            fields.extend(extracted_fields)
+    
+    log_finding(
+        WebsiteFinding(
+            content_regex.finding_name, wi.ip, wi.port, wi.domain, wi.path, wi.ssl, content_regex.finding_display_name, fields
+        )
+    )
+
+    if content_regex.tag.enabled:
+        log_finding(
+            TagFinding(
+                content_regex.tag.name, ip=wi.ip, port=wi.port, domainName=wi.domain, path=wi.path, protocol='tcp'
+            )
+        )
+
+def should_analyse(endpoint: str, content_type_header: str | None, extension_exclusions: list[str], content_type_exclusions: list[str]):
+    if content_type_header is not None:
+        all_ct_exclusions = global_content_types_exclusions + content_type_exclusions
+        for exclusion in all_ct_exclusions:
+            if content_type_header.startswith(exclusion):
+                return False
+
+    extension = os.path.splitext(urlparse(endpoint).path)[1]
+    if extension in extension_exclusions:
+        return False
+    
+    return True
+
+
+def analyse_response(file: WebsiteFile, website_info: WebsiteInfo):
+    for regex in default_regex:
+        if not should_analyse(file.request.endpoint, file.response.headers.get("content-type"), regex.exclude_file_extensions, regex.exclude_content_types):
+            continue
+        if regex.target == "all" or regex.target == "headers":
+            if file.response.headers:
+                matches: list[re.Match] = []
+                for headerName in file.response.headers.keys():
+                    full_header = f"{headerName}: {file.response.headers.get(headerName)}"
+                    matches.extend(apply_regex(regex, full_header))
+
+                emit_regex_findings(regex, matches, website_info, file.request)
+
+        if regex.target == "all" or regex.target == "body":
+            if file.response.body:
+                emit_regex_findings(regex, apply_regex(regex, file.response.body), website_info, file.request)
 
 def main():
     target_ip, port, domain, path, ssl, max_depth, crawl_duration_seconds, concurrency, parallelism, extra_options = get_valid_args()
     url = build_url(target_ip, port, domain, path, ssl)
-
+    website_info = WebsiteInfo(target_ip, port, domain, path, ssl)
+    
     katana_str: str = f"katana -u {url} -d {max_depth} -ct {crawl_duration_seconds} -c {str(concurrency)} -p {str(parallelism)} {extra_options}"
     log_info(f'Start of crawling: {katana_str}')
 
-    # katana -u https://example.com -d 3 -ct 3600 -c 10 -p 10 -jc -kf all -duc -j -or -ob -silent -td -do
+    # katana -u https://example.com -d 3 -ct 3600 -c 10 -p 10 -jc -kf all -duc -j -or -silent -td -do
     technologies: 'set[str]' = set()
     external_files: 'set[str]' = set()
     with Popen(katana_str, stdout=PIPE, stderr=PIPE, universal_newlines=True, shell=True) as katana_process:
@@ -173,7 +297,11 @@ def main():
                     if file.response.status_code == 404:
                         continue
                     
-                    emit_file_finding(file, domain, target_ip, port, path, ssl)
+                    emit_file_finding(file, website_info)
+
+                    if(file.response):
+                        analyse_response(file, website_info)
+
             except Exception as err:
                 log_warning(err)
                 continue
@@ -181,14 +309,9 @@ def main():
         for line in katana_process.stderr:
             log_error(line)
             
-    emit_technology_findings(technologies, domain, target_ip, port, path, ssl)
-    emit_out_of_scope_files(external_files, domain, target_ip, port, path, ssl)
+    emit_technology_findings(technologies, website_info)
+    emit_out_of_scope_files(external_files, website_info)
 
-try:
-    main()
-    log_status(JobStatus.SUCCESS)
-except Exception as err:
-    log_error("An unexpected error occured")
-    log_error(err)
-    log_status(JobStatus.FAILED)
-    exit()
+
+main()
+log_status(JobStatus.SUCCESS)
