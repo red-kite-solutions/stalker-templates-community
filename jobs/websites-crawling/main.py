@@ -22,13 +22,16 @@ class WebsiteResponse:
     headers: typing.Dict[str, str]
     technologies: 'list[str]'
 
+
 class WebsiteFile:
     timestamp: str
     request: WebsiteRequest
     response: WebsiteResponse
+    error: str
     
     def __init__(self, data: dict):
         self.timestamp = data.get("timestamp")
+        self.error = data.get("error")
         self.request = WebsiteRequest()
         req: dict = data.get("request")
         self.request.attribute = req.get("attribute")
@@ -37,10 +40,11 @@ class WebsiteFile:
         self.request.source = req.get("source")
         self.request.tag = req.get("tag")
         self.response = WebsiteResponse()
-        res: dict = data.get("response")
-        self.response.headers = res.get("headers")
-        self.response.status_code = res.get("status_code")
-        self.response.technologies = res.get("technologies")
+        if not self.error:
+            res: dict = data.get("response")
+            self.response.headers = res.get("headers")
+            self.response.status_code = res.get("status_code")
+            self.response.technologies = res.get("technologies")
         
 
 def get_valid_args():
@@ -126,6 +130,21 @@ def emit_technology_findings(technologies: 'list[str]', domain: str, ip: str, po
             )
         )
 
+def emit_out_of_scope_files(endpoints: 'list[str]', domain: str, ip: str, port: int, path: str, ssl: bool):
+    if len(endpoints) <= 0:
+        return
+    
+    fields = [TextField("oos_endpoint_title", "Out of scope endpoints", None)]
+    for endpoint in endpoints:
+        fields.append(TextField("oos_endpoint", None, endpoint))
+
+    log_finding(
+        WebsiteFinding(
+            "OutOfScopeEndpoints", ip, port, domain, path, ssl, f"Website out of scope endpoints", fields
+        )
+    )
+    
+
 def main():
     target_ip, port, domain, path, ssl, max_depth, crawl_duration_seconds, concurrency, parallelism, extra_options = get_valid_args()
     url = build_url(target_ip, port, domain, path, ssl)
@@ -133,8 +152,9 @@ def main():
     katana_str: str = f"katana -u {url} -d {max_depth} -ct {crawl_duration_seconds} -c {str(concurrency)} -p {str(parallelism)} {extra_options}"
     log_info(f'Start of crawling: {katana_str}')
 
-    # katana -u https://example.com -silent -d 3 -ct 3600 -jc -kf all -timeout 3 -duc -j -or -ob -c 10 -p 10
+    # katana -u https://example.com -d 3 -ct 3600 -c 10 -p 10 -jc -kf all -duc -j -or -ob -silent -td -do
     technologies: 'set[str]' = set()
+    external_files: 'set[str]' = set()
     with Popen(katana_str, stdout=PIPE, stderr=PIPE, universal_newlines=True, shell=True) as katana_process:
         
         for line in katana_process.stdout:
@@ -142,6 +162,11 @@ def main():
             try:
                 file: WebsiteFile = WebsiteFile(loads(line))
                 if file:
+                    if file.error:
+                        if file.error == "out of scope":
+                            external_files.add(file.request.endpoint)
+                        continue
+
                     if file.response.technologies:
                         technologies.update(file.response.technologies)
 
@@ -157,6 +182,7 @@ def main():
             log_error(line)
             
     emit_technology_findings(technologies, domain, target_ip, port, path, ssl)
+    emit_out_of_scope_files(external_files, domain, target_ip, port, path, ssl)
 
 try:
     main()
