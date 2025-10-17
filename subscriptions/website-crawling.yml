@@ -25,4 +25,4 @@ job:
     - name: inputParallelism
       value: 10
     - name: extraOptions
-      value: "-jc -kf all -duc -j -or -ob -silent"
+      value: "-jc -kf all -duc -j -or -silent"
