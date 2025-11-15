@@ -1,4 +1,5 @@
 import os
+import re
 import xml.etree.ElementTree as ET
 from json import loads
 from subprocess import CompletedProcess, run
@@ -80,6 +81,8 @@ def emit_os_finding(ip: str, operating_system: str):
         )
     )
 
+http_regex = re.compile(r"HTTP/(0\\\.9|1\\\.0|1\\\.1|2|3)\\x20\d\d\d\\x20", re.MULTILINE)
+
 def main():
     target_ip, ports, nmap_options = get_valid_args()
     output_file = "output.xml"
@@ -112,6 +115,10 @@ def main():
             extrainfo = i.attrib.get("extrainfo") if i.attrib.get("extrainfo") is not None else ''
             ostype = i.attrib.get("ostype") if i.attrib.get("ostype") is not None else ''
             tunnel = i.attrib.get("tunnel") if i.attrib.get("tunnel") is not None else ''
+            finger_print = i.attrib.get("servicefp") if i.attrib.get("servicefp") is not None else ''
+
+            if finger_print != '' and http_regex.search(finger_print):
+                name = 'https' if tunnel == 'ssl' else 'http'
 
             if (name == 'ssl' or name == 'http') and tunnel == 'ssl':
                 name = 'https'
