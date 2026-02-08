@@ -25,4 +25,4 @@ parameters:
     default: "Website screenshot"
 jobPodConfigName: XL
 category: "built-in/python"
-image: "ghcr.io/red-kite-solutions/stalker-python-job-base:3"
+image: "ghcr.io/red-kite-solutions/stalker-python-job-base:3.1"
