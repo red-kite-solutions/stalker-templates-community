@@ -1,12 +1,13 @@
 from ipaddress import ip_address
 from json import loads
 from os import environ
-from subprocess import CompletedProcess, run
+from subprocess import CompletedProcess, run, Popen, PIPE, STDOUT
 
 from stalker_job_sdk import (IpFinding, JobStatus, PortFinding, TextField,
                              is_valid_ip, is_valid_port, log_error,
                              log_finding, log_info, log_status, log_warning)
 
+hosts = set()
 
 def validate_ip(ip: str, name: str):
     if not is_valid_ip(ip):
@@ -19,6 +20,45 @@ def validate_port(port: int, name: str):
         log_error(f"Invalid port {str(port)} in {name}")
         log_status(JobStatus.FAILED)
         exit()
+
+def publish_finding(line: str):
+    try:
+        finding = line.split(' ')
+        port = int(finding[3].split('/')[0])
+        
+        ip_str = finding[5]
+        ip_int = int(ip_address(ip_str))
+
+        if ip_int not in hosts:
+            hosts.add(ip_int)
+            print(ip_str)
+            # log host
+            log_finding(
+                IpFinding(
+                    "IpFinding",
+                    ip_str,
+                    "Ip range scanning finding",
+                    [],
+                    "IpFinding",
+                )
+            )
+
+        # log port
+        log_finding(
+            PortFinding(
+                "PortFinding",
+                ip_str,
+                port,
+                "tcp",
+                "Ip range scanning finding",
+                [TextField("protocol", "TCP port", "tcp")],
+                "PortFinding",
+            )
+        )
+
+    except Exception:
+        log_warning(f'Error while parsing line: {line}. Continuing')
+
         
 def main():
     TARGET_IP: str = environ.get("targetIp")  # Start of ip range
@@ -61,8 +101,6 @@ def main():
     validate_port(PORT_MIN, 'portMin')
     validate_port(PORT_MAX, 'portMax')
 
-
-    output_file = 'out.txt'
     ports_str = ','.join(str(n) for n in ports_set)
 
     if PORT_MIN and PORT_MAX and PORT_MAX > PORT_MIN:
@@ -75,62 +113,30 @@ def main():
         exit()
 
     log_info(f'Start of the IP range scanning {TARGET_IP}/{str(TARGET_MASK)} (rate: {RATE}, ports: {ports_str}). It may take a while.')
+    
+    command = f'masscan --rate {str(RATE)} --open-only -p {ports_str} {TARGET_IP}/{str(TARGET_MASK)}'.split(' ')
 
-    masscan_process: CompletedProcess = run(
-            [
-                'masscan',
-                '--rate', str(RATE), 
-                '-oL', output_file,
-                '--open-only',
-                '-p', ports_str,
-                f'{TARGET_IP}/{str(TARGET_MASK)}'
-            ],
-            text=True
-        )
+    with Popen(
+        command, 
+        stdout=PIPE, 
+        stderr=PIPE,
+        text=True,
+        bufsize=1                  
+    ) as process:
 
-    hosts = set()
-    with open(output_file, 'r') as f:
-        for line in f:
-            try:
-                if not line or line[0] == "#":
-                    continue
-                finding = line.split(' ')
-                port = int(finding[2])
-                
-                ip_str = finding[3]
-                ip_int = int(ip_address(ip_str))
+        for line in process.stdout:
+            if not line or line[0:10] != "Discovered":
+                continue
 
-                if ip_int not in hosts:
-                    hosts.add(ip_int)
-                    print(ip_str)
-                    # log host
-                    log_finding(
-                        IpFinding(
-                            "IpFinding",
-                            ip_str,
-                            "Ip range scanning finding",
-                            [],
-                            "IpFinding",
-                        )
-                    )
+            publish_finding(line)
 
-                # log port
-                log_finding(
-                    PortFinding(
-                        "PortFinding",
-                        ip_str,
-                        port,
-                        "tcp",
-                        "Ip range scanning finding",
-                        [TextField("protocol", "TCP port", "tcp")],
-                        "PortFinding",
-                    )
-                )
+        return_code = process.wait()
 
-            except Exception:
-                log_warning(f'Error while parsing line: {line}. Continuing')
-
-    log_info(f'End of the IP range scanning {TARGET_IP}/{str(TARGET_MASK)}')
+        if return_code != 0:
+            log_info(f'There was a problem scanning IP range {TARGET_IP}/{str(TARGET_MASK)}')
+            log_info(f'Error: {process.stderr.read()}')
+        else:
+            log_info(f'Successful IP range scanning of {TARGET_IP}/{str(TARGET_MASK)}')
             
 
 if __name__ == "__main__":
